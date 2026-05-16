@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Channel Analyzer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root[data-theme="dark"] {
+      --bg:           #0f0f0f;
+      --surface:      #1a1a1a;
+      --border:       #2a2a2a;
+      --border-row:   #1e1e1e;
+      --text:         #e8e8e8;
+      --text-strong:  #ffffff;
+      --text-muted:   #888888;
+      --text-faint:   #555555;
+      --text-dim:     #aaaaaa;
+      --text-cell:    #d0d0d0;
+      --input-bg:     #1a1a1a;
+      --input-border: #333333;
+      --btn-disabled: #555555;
+      --err-bg:       #2a0a0a;
+      --err-border:   #6b0000;
+      --err-text:     #ff6b6b;
+      --badge-bg:     #ff000033;
+      --badge-border: #ff000055;
+      --badge-text:   #ff6b6b;
+      --hover-row:    #1a1a1a;
+      --toggle-bg:    #2a2a2a;
+      --toggle-text:  #aaaaaa;
+    }
+
+    :root[data-theme="light"] {
+      --bg:           #f5f5f5;
+      --surface:      #ffffff;
+      --border:       #e0e0e0;
+      --border-row:   #f0f0f0;
+      --text:         #1a1a1a;
+      --text-strong:  #000000;
+      --text-muted:   #666666;
+      --text-faint:   #999999;
+      --text-dim:     #555555;
+      --text-cell:    #222222;
+      --input-bg:     #ffffff;
+      --input-border: #cccccc;
+      --btn-disabled: #aaaaaa;
+      --err-bg:       #fff0f0;
+      --err-border:   #ffaaaa;
+      --err-text:     #cc0000;
+      --badge-bg:     #ff000018;
+      --badge-border: #ff000044;
+      --badge-text:   #cc0000;
+      --hover-row:    #fafafa;
+      --toggle-bg:    #e8e8e8;
+      --toggle-text:  #555555;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 0.25rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-strong);
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.8rem;
+      background: var(--toggle-bg);
+      color: var(--toggle-text);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { opacity: 0.8; }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 0.5rem;
+      max-width: 680px;
+      margin-bottom: 2.5rem;
+    }
+
+    .search-bar input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s, background 0.2s, color 0.2s;
+    }
+    .search-bar input:focus { border-color: #ff0000; }
+    .search-bar input::placeholder { color: var(--text-faint); }
+
+    .search-bar button {
+      padding: 0.75rem 1.4rem;
+      background: #ff0000;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .search-bar button:hover { background: #cc0000; }
+    .search-bar button:disabled { background: var(--btn-disabled); cursor: not-allowed; }
+
+    #error-msg {
+      display: none;
+      background: var(--err-bg);
+      border: 1px solid var(--err-border);
+      color: var(--err-text);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      max-width: 680px;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    #spinner {
+      display: none;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .spinner-dot { display: inline-block; animation: pulse 1.2s infinite; }
+    .spinner-dot:nth-child(2) { animation-delay: 0.2s; }
+    .spinner-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: 0.2; }
+      40% { opacity: 1; }
+    }
+
+    #results { display: none; }
+
+    .channel-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .channel-header img {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .channel-header img.hidden { display: none; }
+
+    .channel-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-strong);
+    }
+
+    .channel-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.4rem;
+      min-width: 180px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-strong);
+    }
+
+    .stat-note {
+      font-size: 0.72rem;
+      color: var(--text-faint);
+      margin-top: 0.2rem;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      transition: border-color 0.2s;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    thead {
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+    }
+
+    thead th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-dim);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    thead th.num { text-align: right; }
+
+    tbody tr {
+      border-top: 1px solid var(--border-row);
+      transition: background 0.1s;
+    }
+    tbody tr:hover { background: var(--hover-row); }
+
+    td {
+      padding: 0.7rem 1rem;
+      color: var(--text-cell);
+      vertical-align: middle;
+    }
+
+    td.date { color: var(--text-muted); white-space: nowrap; font-size: 0.82rem; }
+    td.title { max-width: 480px; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .badge {
+      display: inline-block;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      border: 1px solid var(--badge-border);
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .yt-link {
+      color: #e00000;
+      text-decoration: none;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+    .yt-link:hover { text-decoration: underline; }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <h1>YouTube Channel Analyzer</h1>
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">☀ Light</button>
+    </div>
+    <p class="subtitle">Paste any YouTube channel link to see stats and video history.</p>
+
+    <div class="search-bar">
+      <input
+        id="url-input"
+        type="text"
+        placeholder="https://www.youtube.com/@channelname"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button id="analyze-btn" onclick="analyze()">Analyze</button>
+    </div>
+
+    <div id="error-msg"></div>
+
+    <div id="spinner">
+      Fetching data<span class="spinner-dot">.</span><span class="spinner-dot">.</span><span class="spinner-dot">.</span>
+      <span id="spinner-note" style="margin-left:0.5rem;"></span>
+    </div>
+
+    <div id="results">
+      <div class="channel-header">
+        <img id="channel-thumb" src="" alt="" />
+        <div>
+          <div class="channel-name" id="channel-name"></div>
+          <div class="channel-meta" id="channel-meta"></div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Views — last 30 days</div>
+          <div class="stat-value" id="stat-views"></div>
+          <div class="stat-note">From videos published in the last 30 days</div>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Date posted</th>
+              <th>Title</th>
+              <th class="num">Views</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody id="video-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById("url-input");
+    input.addEventListener("keydown", e => { if (e.key === "Enter") analyze(); });
+
+    // Theme toggle
+    const root = document.documentElement;
+    const themeBtn = document.getElementById("theme-btn");
+
+    function applyTheme(theme) {
+      root.setAttribute("data-theme", theme);
+      themeBtn.textContent = theme === "dark" ? "☀ Light" : "☾ Dark";
+      localStorage.setItem("theme", theme);
+    }
+
+    function toggleTheme() {
+      applyTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    }
+
+    applyTheme(localStorage.getItem("theme") || "dark");
+
+    // Analyzer
+    function fmt(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+      if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+      return n.toLocaleString();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById("error-msg");
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function clearError() {
+      const el = document.getElementById("error-msg");
+      el.style.display = "none";
+      el.textContent = "";
+    }
+
+    async function analyze() {
+      const url = input.value.trim();
+      if (!url) return;
+
+      clearError();
+      document.getElementById("results").style.display = "none";
+      document.getElementById("spinner").style.display = "block";
+      document.getElementById("spinner-note").textContent = "";
+      document.getElementById("analyze-btn").disabled = true;
+
+      const timeout = setTimeout(() => {
+        document.getElementById("spinner-note").textContent = "(large channel — this may take a moment)";
+      }, 4000);
+
+      try {
+        const resp = await fetch("/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        clearTimeout(timeout);
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          showError(data.error || "An error occurred.");
+          return;
+        }
+
+        document.getElementById("channel-name").textContent = data.channel_name;
+        document.getElementById("channel-meta").textContent =
+          `${data.video_count.toLocaleString()} video${data.video_count !== 1 ? "s" : ""}`;
+
+        const thumb = document.getElementById("channel-thumb");
+        if (data.thumbnail) {
+          thumb.src = data.thumbnail;
+          thumb.classList.remove("hidden");
+        } else {
+          thumb.classList.add("hidden");
+        }
+
+        document.getElementById("stat-views").textContent = fmt(data.views_last_30_days);
+
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 30);
+
+        const tbody = document.getElementById("video-table");
+        tbody.innerHTML = data.videos.map(v => {
+          const isRecent = new Date(v.date) >= cutoff;
+          const badge = isRecent ? '<span class="badge">Last 30d</span>' : "";
+          return `<tr>
+            <td class="date">${v.date}</td>
+            <td class="title">${escHtml(v.title)}${badge}</td>
+            <td class="num">${v.views.toLocaleString()}</td>
+            <td><a class="yt-link" href="${v.url}" target="_blank" rel="noopener">Watch ↗</a></td>
+          </tr>`;
+        }).join("");
+
+        document.getElementById("results").style.display = "block";
+      } catch (err) {
+        clearTimeout(timeout);
+        showError("Network error — could not reach the server.");
+      } finally {
+        document.getElementById("spinner").style.display = "none";
+        document.getElementById("analyze-btn").disabled = false;
+      }
+    }
+
+    function escHtml(s) {
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>
